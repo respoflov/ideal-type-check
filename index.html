@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#f6f0e1">
+<title>이상형 셀프 체크</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="icon" href="./icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f6f0e1;      /* 미색모조 바탕 */
+    --card:#fdfaf1;       /* 카드 */
+    --ink:#3c352a;        /* 본문 잉크(웜 다크브라운) */
+    --sub:#8b8069;        /* 보조 텍스트 */
+    --line:#e4dac3;       /* 괘선 */
+    --green:#2f5d44;      /* 딥그린 포인트 */
+    --green-soft:#e9efe8;
+    --red:#a3473b;        /* 양보불가(차분한 적갈색) */
+    --red-soft:#f2e3de;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0;}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:'Apple SD Gothic Neo','Pretendard','Noto Sans KR',system-ui,sans-serif;
+    font-size:15px; line-height:1.55; padding-bottom:96px;
+  }
+  .wrap{max-width:640px; margin:0 auto; padding:0 16px;}
+
+  header{padding:26px 0 10px; text-align:center;}
+  header h1{font-family:'Gowun Batang',serif; font-size:26px; font-weight:700; margin:0 0 4px; letter-spacing:.02em;}
+  header h1 .dot{color:var(--green);}
+  header p{margin:0; color:var(--sub); font-size:13px;}
+  .clock{margin-top:6px; font-size:12px; color:var(--sub); font-variant-numeric:tabular-nums;}
+  .clock b{color:var(--green); font-weight:600;}
+  .save-state{
+    display:inline-block; margin-top:8px; font-size:11.5px; color:var(--sub);
+    border:1px solid var(--line); border-radius:99px; padding:2px 10px; background:var(--card);
+  }
+  .save-state b{color:var(--green); font-weight:600;}
+
+  nav{position:sticky; top:0; z-index:20; background:linear-gradient(var(--paper) 88%, rgba(246,240,225,0)); padding:10px 0 6px;}
+  .tabs{display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; max-width:640px; margin:0 auto; padding:0 16px;}
+  .tabs::-webkit-scrollbar{display:none;}
+  .tab{flex:0 0 auto; border:1px solid var(--line); background:var(--card); color:var(--ink);
+    border-radius:99px; padding:7px 13px; font-size:13px; cursor:pointer; white-space:nowrap;}
+  .tab small{color:var(--sub); font-size:11px; margin-left:4px;}
+  .tab.on{background:var(--ink); color:var(--card); border-color:var(--ink);}
+  .tab.on small{color:#cfc6b2;}
+  .tab.on::before{content:''; display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--green); margin-right:6px; vertical-align:1px;}
+
+  .sec-intro{margin:14px 2px 12px; font-size:13px; color:var(--sub);}
+  .sec-intro b{color:var(--ink); font-family:'Gowun Batang',serif; font-size:15px;}
+
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px 14px 12px; margin-bottom:12px;}
+  .card.db-on{border-color:#d9b3aa; box-shadow:0 0 0 1px #d9b3aa inset;}
+  .q-head{display:flex; align-items:baseline; gap:8px;}
+  .q-num{font-family:'Gowun Batang',serif; font-size:13px; color:var(--green); min-width:20px; font-weight:700;}
+  .q-title{font-weight:700; font-size:15.5px; flex:1;}
+  .q-note{font-size:12px; color:var(--sub); margin:4px 0 0 28px;}
+
+  .db{flex:0 0 auto; border:1px solid var(--line); background:transparent; color:var(--sub);
+    border-radius:99px; font-size:11px; padding:3px 9px; cursor:pointer;
+    display:inline-flex; align-items:center; gap:5px;}
+  .db::before{content:''; width:6px; height:6px; border-radius:50%; background:var(--line);}
+  .db.on{border-color:var(--red); color:var(--red); background:var(--red-soft); font-weight:600;}
+  .db.on::before{background:var(--red);}
+
+  .rows{margin-top:10px; display:flex; flex-direction:column; gap:8px;}
+  .row{display:flex; gap:8px;}
+  .row-label{flex:0 0 44px; font-size:12px; padding-top:6px; text-align:center;
+    font-family:'Gowun Batang',serif; font-weight:700;}
+  .row-label.me{color:var(--ink);}
+  .row-label.ideal{color:var(--green);}
+  .chips{flex:1; display:flex; flex-wrap:wrap; gap:6px;}
+  .chip{border:1px solid var(--line); background:var(--paper); color:var(--ink);
+    border-radius:99px; padding:6px 12px; font-size:13px; cursor:pointer; line-height:1.3;}
+  .chip.sel{background:var(--ink); color:var(--card); border-color:var(--ink);}
+  .chip.none.sel{background:var(--green); border-color:var(--green); color:#f6f0e1;}
+  .chip.pass{color:var(--sub); border-style:dotted;}
+  .chip.pass.sel{background:#b8ad95; border-color:#b8ad95; color:#fdfaf1; border-style:solid;}
+  .chip.etc{border-style:dashed; color:var(--sub);}
+  .chip.etc.sel{background:var(--card); color:var(--ink); border:1px solid var(--green);}
+  .etc-box, .text-in, .essay{
+    width:100%; margin-top:6px; border:1px solid var(--line); border-radius:10px;
+    background:#fffef9; color:var(--ink); font:inherit; font-size:13.5px;
+    padding:8px 10px; resize:vertical;}
+  .etc-box:focus, .text-in:focus, .essay:focus{outline:2px solid var(--green-soft); border-color:var(--green);}
+  .text-in{margin-top:0;}
+  .essay{margin-top:10px; min-height:84px;}
+  .single .row-label{display:none;}
+  .single .row{gap:0;}
+  .multi-hint{font-size:11px; color:var(--sub); margin:6px 0 0 52px;}
+  .single .multi-hint{margin-left:2px;}
+
+  .pager{position:fixed; left:0; right:0; bottom:0; z-index:30;
+    background:linear-gradient(rgba(246,240,225,0), var(--paper) 40%);
+    padding:14px 16px calc(14px + env(safe-area-inset-bottom));}
+  .pager-inner{max-width:640px; margin:0 auto; display:flex; gap:10px;}
+  .pager button{flex:1; border:1px solid var(--line); background:var(--card); color:var(--ink);
+    border-radius:12px; padding:12px; font:inherit; font-size:14px; cursor:pointer;}
+  .pager button.primary{background:var(--green); border-color:var(--green); color:#f6f0e1; font-weight:700;}
+  .pager button:disabled{opacity:.4;}
+
+  .result-actions{display:flex; flex-direction:column; gap:8px; margin:14px 0;}
+  .result-actions button{border:1px solid var(--line); background:var(--card); color:var(--ink);
+    border-radius:12px; padding:13px; font:inherit; font-size:14.5px; cursor:pointer; font-weight:600;}
+  .result-actions button.primary{background:var(--green); border-color:var(--green); color:#f6f0e1;}
+  .result-actions button.danger{color:var(--red); border-color:#dcc0b8;}
+  .result-hint{font-size:12px; color:var(--sub); text-align:center; margin:6px 0 14px;}
+
+  .sheet{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px 16px; margin-bottom:16px;}
+  .sheet h2{font-family:'Gowun Batang',serif; font-size:18px; margin:0 0 2px; text-align:center;}
+  .sheet .date{text-align:center; font-size:12px; color:var(--sub); margin-bottom:12px;}
+  .sheet h3{font-family:'Gowun Batang',serif; font-size:14.5px; color:var(--green);
+    border-bottom:1px solid var(--line); padding-bottom:5px; margin:18px 0 8px;}
+  .r-item{padding:7px 0; border-bottom:1px dashed #eee5d0; font-size:13.5px;}
+  .r-item:last-child{border-bottom:none;}
+  .r-title{font-weight:700;}
+  .r-title .star{color:var(--red); font-size:11.5px; font-weight:600; margin-left:6px;}
+  .r-vals{margin-top:2px; color:var(--ink); white-space:pre-wrap;}
+  .r-vals .lb{display:inline-block; min-width:44px; color:var(--sub); font-size:12px;}
+  .r-vals .lb.g{color:var(--green);}
+  .empty{color:#b9ae96;}
+  .legend{font-size:11.5px; color:var(--sub); margin-top:14px; text-align:center;}
+  .legend .star{color:var(--red);}
+
+  /* 보관함 */
+  .arc-item{background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px; margin-bottom:10px; cursor:pointer; display:flex; align-items:center; gap:10px;}
+  .arc-item .seal{width:10px; height:10px; border-radius:50%; background:var(--green); flex:0 0 auto;}
+  .arc-item .info{flex:1;}
+  .arc-item .info b{font-family:'Gowun Batang',serif; font-size:14.5px;}
+  .arc-item .info small{display:block; color:var(--sub); font-size:12px; margin-top:2px;}
+  .arc-item .go{color:var(--sub); font-size:12px;}
+  .arc-empty{text-align:center; color:var(--sub); font-size:13px; padding:36px 0;}
+  .lock-note{font-size:12px; color:var(--sub); text-align:center; margin-bottom:12px;}
+  .lock-note b{color:var(--red); font-weight:600;}
+
+  /* 토스트 */
+  #toast{position:fixed; left:50%; bottom:92px; transform:translateX(-50%) translateY(10px);
+    background:var(--ink); color:var(--card); font-size:13px; padding:9px 16px; border-radius:99px;
+    opacity:0; pointer-events:none; transition:.25s; z-index:50; max-width:88%; text-align:center;}
+  #toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<header class="wrap">
+  <h1>이상형 셀프 체크<span class="dot">.</span></h1>
+  <p>나와 내 이상형을 나란히 적어보는 기록장</p>
+  <div class="clock" id="clock"></div>
+  <span class="save-state">작성 중 내용은 이 기기에 <b>자동 임시 저장</b> · 제출하면 <b>보관함</b>에 기록돼요</span>
+</header>
+
+<nav><div class="tabs" id="tabs"></div></nav>
+<main class="wrap" id="main"></main>
+<div id="toast"></div>
+
+<div class="pager"><div class="pager-inner">
+  <button id="prevBtn">이전</button>
+  <button id="nextBtn" class="primary">다음</button>
+</div></div>
+
+<script>
+/* ───────── 데이터 ─────────
+   pair 문항: 나 행 = (selfO||o)+기타(+패스) / selfText면 텍스트
+              이상형 행 = (idealO||o)+상관없다+기타(+패스) / idealText면 텍스트+상관없다
+   essay 문항: 서술형 한 칸(자기어필·섹션 자유서술)                     */
+const SECTIONS = [
+{ id:'s0', name:'기본', title:'섹션 0 · 기본 정보', intro:'나에 대한 기본 사항이에요. 편하게 적어주세요.', single:true, qs:[
+  {t:'이름 (닉네임 가능)', text:'예: 홍길동 / 길동이'},
+  {t:'성별', o:['남성','여성']},
+  {t:'나이 (출생연도)', text:'예: 1998'},
+  {t:'현 시점 거주 지역', text:'예: 대구'},
+  {t:'희망 상대 성별', o:['남성','여성'], db:true},
+  {t:'희망 상대 나이대', o:['동갑 ±2','연상 선호','연하 선호','상관없다'], db:true},
+  {t:'만남 희망 지역 범위', o:['같은 시/군 내','1시간 이내','장거리 가능','상관없다'], db:true},
+]},
+{ id:'s1', name:'외관', title:'섹션 1 · 외관', intro:'겉으로 보이는 모습에 대한 취향이에요. 「나」와 「이상형」을 각각 골라주세요. (복수 선택 가능)', qs:[
+  {t:'키', selfText:'내 키 (예: 172)', idealO:['나보다 커야 함','나보다 작아야 함','비슷하면 좋음']},
+  {t:'체형', o:['마른 편','슬림탄탄','보통','통통한 편','근육질']},
+  {t:'손', o:['손이 큰 편','손이 작은 편','손가락이 길고 예쁜 편','잘 모름']},
+  {t:'눈 (쌍꺼풀)', o:['무쌍','유쌍','속쌍']},
+  {t:'웃는 인상', o:['눈웃음파','입꼬리·미소파','호탕하게 웃는 파','잘 안 웃는 편']},
+  {t:'퍼스널컬러·피부톤', o:['웜톤','쿨톤','잘 모름']},
+  {t:'피부 상태', o:['깨끗·잡티 없는 편','보통','트러블 있는 편']},
+  {t:'얼굴상 (동물상)', o:['강아지상','고양이상','여우상','곰상','토끼상']},
+  {t:'첫인상 분위기', o:['상견례 프리패스상 (엄친아·엄친딸st)','문전박대상 (날라리st)','차도남·차도녀st','순둥순둥st']},
+  {t:'이목구비 스타일', o:['뚜렷·화려한 인상','순하고 부드러운 인상']},
+  {t:'동안 vs 성숙형', o:['동안형','성숙형 (어른스러운 인상)']},
+  {t:'패션 스타일', o:['캐주얼','미니멀·포멀','스트릿','러블리·페미닌','아메카지·빈티지','꾸안꾸']},
+  {t:'헤어 (길이)', o:['긴 편','중간 길이','짧은 편']},
+  {t:'머리색 (염색)', o:['자연 흑발·다크브라운','자연스러운 갈색 톤','밝은 염색·탈색도 좋아함']},
+  {t:'안경', o:['안경 씀','렌즈·라식 (안 씀)','그때그때']},
+  {t:'액세서리 (귀걸이·반지·시계 등)', o:['즐겨 하는 편','최소한만 (시계 정도)','안 하는 편']},
+  {t:'꾸밈·자기관리 정도', o:['꾸미는 걸 즐김','최소한만 (꾸안꾸)','거의 안 꾸밈']},
+  {t:'타투', o:['있음','없음 (할 생각 있음)','없음 (할 생각 없음)']},
+  {t:'목소리·말투', o:['저음·차분한 톤','밝고 하이톤','조곤조곤 나긋한 말투']},
+  {t:'향 (향수 사용)', o:['향수 즐겨 씀','은은한 섬유유연제파','무향파']},
+  {essay:true, t:'자유 서술 · 외관', note:'「외관」과 관련해 하고 싶은 이야기를 무엇이든 자유롭게 적어주세요. 내 외모의 매력이든, 이상형의 분위기든 좋아요.', ph:'예: 저는 웃을 때 보조개가 매력이에요. 이상형은 전체적인 분위기가…'},
+]},
+{ id:'s2', name:'성격', title:'섹션 2 · 성격', intro:'성향과 기질에 대한 부분이에요. (복수 선택 가능)', qs:[
+  {t:'MBTI', selfText:'내 MBTI (모르면 "모름")', idealText:'선호하는 MBTI'},
+  {t:'외향 vs 내향', o:['외향 (인싸형)','내향 (집순이·집돌이형)','중간']},
+  {t:'혼자만의 시간', o:['꼭 필요한 편','없어도 괜찮은 편 (같이가 좋음)']},
+  {t:'낯가림', o:['처음부터 친화력 좋음','낯가리지만 친해지면 반전']},
+  {t:'애교', o:['애교 많음','무뚝뚝 (츤데레)','중간']},
+  {t:'다정함 vs 시크함', o:['다정·자상함','시크·쿨함']},
+  {t:'눈치·센스', o:['눈치 빠르고 잘 챙기는 편','둔한 편 (대신 순수함)']},
+  {t:'감성 vs 이성 (T/F)', o:['공감 먼저 (F형)','해결책 먼저 (T형)']},
+  {t:'감정 표현', o:['표현 잘함 (좋아하면 티 냄)','표현 서툼 (속으로 좋아함)']},
+  {t:'유머 코드', o:['장난·드립 많음','잔잔·진중함','리액션 장인 (듣는 쪽)']},
+  {t:'대화 스타일', o:['수다형 (말하는 게 좋음)','경청형 (들어주는 게 좋음)','반반']},
+  {t:'리드 성향', o:['리드하는 편','맞춰주는 편','반반']},
+  {t:'결정 스타일', o:['결단 빠른 편 (메뉴도 바로)','결정장애 (골라주면 고마움)']},
+  {t:'계획 vs 즉흥 (J/P)', o:['계획형 (짜인 일정 선호)','즉흥형 (그때그때)']},
+  {t:'성격 템포', o:['급한 편 (빨리빨리)','느긋한 편 (여유만만)']},
+  {t:'긍정 vs 신중', o:['긍정·낙천파 (어떻게든 되겠지)','현실·신중파 (플랜B까지 준비)']},
+  {t:'도전 vs 안정', o:['도전형 (새로운 게 좋음)','안정형 (익숙한 게 좋음)']},
+  {t:'주관 vs 유연', o:['주관·소신 뚜렷한 편','유연하게 맞춰주는 편']},
+  {t:'갈등 대처', o:['바로 대화로 풀기','혼자 정리할 시간 필요']},
+  {t:'화내는 스타일', o:['욱하지만 금방 풀림','잘 참지만 쌓이면 폭발','거의 화 안 내는 편']},
+  {essay:true, t:'자유 서술 · 성격', note:'「성격」과 관련해 하고 싶은 이야기를 자유롭게 적어주세요.', ph:'예: 겉은 무뚝뚝해 보여도 챙길 건 다 챙기는 편이에요. 이런 성격을 알아봐 주는 사람이면…'},
+]},
+{ id:'s3', name:'생활', title:'섹션 3 · 생활', intro:'일상과 라이프스타일이에요. (복수 선택 가능)', qs:[
+  {t:'취미', selfText:'내 취미 (최대 3개)', idealText:'함께하고 싶은 취미'},
+  {t:'게임·덕질', o:['게임 즐김','덕질 있음 (아이돌·애니 등)','둘 다 즐김','둘 다 없음'], idealO:['같이 즐기면 좋음','안 하면 좋음']},
+  {t:'집 vs 밖', o:['집순이·집돌이','밖순이·밖돌이','반반']},
+  {t:'친구·모임', o:['친구 많고 약속 잦은 편','소수정예·집이 최고','중간']},
+  {t:'거주 형태', o:['자취','본가 거주','기숙사 등']},
+  {t:'정리정돈·청결', o:['깔끔쟁이 (정리 못 참음)','적당히 어질러도 OK']},
+  {t:'요리', o:['잘하고 즐김','간단한 것만 가능','요리치 (배달·외식파)']},
+  {t:'음식 취향', selfText:'좋아하는 것 · 못 먹는 것', idealO:['밥 잘 먹는 사람','입맛 잘 맞는 사람 (맵찔이·편식 등 고려)']},
+  {t:'흡연', o:['비흡연','연초','전자담배','금연 중']},
+  {t:'음주 빈도', o:['안 마심','월 1~2회','주 1~2회','주 3회 이상']},
+  {t:'운동 빈도', o:['거의 안 함','주 1~2회','주 3회 이상 (루틴 있음)']},
+  {t:'생활 리듬', o:['아침형','저녁형 (올빼미)','불규칙']},
+  {t:'시간 약속', o:['10분 전 도착파','딱 맞춰 도착파','조금 늦는 편 (연락은 함)']},
+  {t:'반려동물', o:['키우는 중','안 키우지만 좋아함','알레르기·비선호']},
+  {t:'종교', o:['무교','기독교','천주교','불교']},
+  {t:'소비 성향', o:['쓸 땐 쓰는 플렉스형','계획·절약형','중간']},
+  {t:'SNS 사용', o:['자주 올리는 편','눈팅만 하는 편','거의 안 함']},
+  {t:'여행 스타일', o:['계획 꽉 채운 J형 여행','발길 닿는 대로 P형 여행','여행 자체를 안 즐김']},
+  {t:'운전·차량', o:['운전 가능 (차 있음)','운전 가능 (차 없음)','면허 없음·장롱면허']},
+  {t:'일 vs 여가', o:['일·자기계발 중심 (갓생파)','여가·휴식 중심 (워라밸파)','중간']},
+  {essay:true, t:'자유 서술 · 생활', note:'「생활」과 관련해 하고 싶은 이야기를 자유롭게 적어주세요.', ph:'예: 주말 루틴, 못 참는 생활 습관, 함께 살면(또는 자주 보면) 이랬으면 하는 점 등'},
+]},
+{ id:'s4', name:'연애', title:'섹션 4 · 연애', intro:'「나」에는 나의 연애 스타일을, 「이상형」에는 상대·관계에 바라는 것을 골라주세요. (복수 선택 가능)', qs:[
+  {t:'선호 데이트 타입', o:['맛집·카페 탐방','액티비티 (운동·나들이)','집데이트','문화생활 (영화·전시·공연)','여행']},
+  {t:'연락 빈도', o:['수시로 틈틈이','하루 2~3번 정도','필요할 때만']},
+  {t:'전화 vs 문자', o:['전화파 (목소리 들어야 함)','문자·카톡파 (글이 편함)','반반']},
+  {t:'주당 만남 횟수', o:['주 1회','주 2~3회','매일도 가능','격주도 괜찮음']},
+  {t:'애정 표현 방식', o:['말로 표현','행동·챙김으로 표현','스킨십으로 표현','선물로 표현','함께 있는 시간 자체']},
+  {t:'애칭', o:['애칭 부르고 싶음 (자기야·별명 등)','이름이 편함']},
+  {t:'원하는 연애 온도', o:['친구같은 편안한 연애','늘 설레는 두근두근 연애','반반']},
+  {t:'연애 템포', o:['금사빠 (빠르게 직진)','서서히 스며드는 편']},
+  {t:'밀당 vs 직진', o:['밀당도 재미 (적당한 긴장감)','밀당 없는 직진·표현파']},
+  {t:'스킨십 템포', o:['빠른 편 (표현이 자연스러움)','천천히 단계적으로']},
+  {t:'이성 친구 허용 범위', o:['자유롭게 OK','단둘이 만나는 건 NO','소개·인지된 사이만 OK']},
+  {t:'질투·관여 정도', o:['어느 정도 관여·확인하는 게 애정','서로 믿고 쿨하게']},
+  {t:'데이트 비용', o:['번갈아·상황에 따라','정확히 반반','여유 있는 쪽이 더']},
+  {t:'커플 SNS 공개 (럽스타그램)', o:['적극 공개파','비공개·조용히 만나는 파']},
+  {t:'커플템 (커플링·커플룩 등)', o:['하고 싶음','부담스러움 (은은한 것만)']},
+  {t:'서프라이즈 이벤트', o:['좋아함 (주는 것도 받는 것도)','부담스러움 (미리 말해주길)']},
+  {t:'기념일·이벤트', o:['잘 챙기는 편 (중요)','소소하게만','잘 안 챙김']},
+  {t:'싸운 뒤 화해 스타일', o:['그날 안에 무조건 풀기','식힌 뒤 대화']},
+  {t:'연애 경험', o:['많은 편','적은 편','모태솔로'], idealO:['경험 많아도 무관','적은 편 선호'],
+   note:'기준: 성인 이후의 만남 · 한 달 이상 이어진 연애 (이상형 쪽의 판단 기준은 자유)'},
+  {essay:true, t:'나의 어필 포인트', noDB:true,
+   note:'단답보다는 조금 길게, 2~4문장 정도로 나를 소개해 주세요.',
+   ph:'예: 리액션이 좋아서 같이 있으면 심심할 틈이 없어요. 좋아하는 사람은 티 나게 잘 챙기는 편이고…'},
+  {essay:true, t:'자유 서술 · 연애', note:'「연애」와 관련해 하고 싶은 이야기를 자유롭게 적어주세요. 바라는 관계의 모습이든, 지난 연애에서 배운 것이든 좋아요.', ph:'예: 서로의 시간을 존중하면서도 표현은 아끼지 않는 연애를 하고 싶어요.'},
+]},
+{ id:'r', name:'결과', title:'결과', result:true, qs:[] },
+{ id:'arc', name:'보관함', title:'보관함', archive:true, qs:[] },
+];
+
+const ETC='기타', NONE='상관없다', PASS='패스';
+const KEY='idealSelfCheckV2', AKEY='idealSelfCheckArchiveV1';
+
+/* ───────── 상태 ───────── */
+let state = { a:{}, tab:0, view:null };
+let archive = [];
+try{
+  const saved = localStorage.getItem(KEY);
+  if(saved){ const p=JSON.parse(saved); state.a=p.a||{}; state.tab=p.tab||0; }
+  const arc = localStorage.getItem(AKEY);
+  if(arc){ archive = JSON.parse(arc)||[]; }
+}catch(e){}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify({a:state.a,tab:state.tab})); }catch(e){} }
+function saveArchive(){ try{ localStorage.setItem(AKEY, JSON.stringify(archive)); return true; }catch(e){ return false; } }
+function ans(id){ return state.a[id] || (state.a[id]={}); }
+function arr(a,k){ if(!Array.isArray(a[k])) a[k]=[]; return a[k]; }
+
+/* ───────── 토스트 & 시계 ───────── */
+const toastEl=document.getElementById('toast'); let toastT;
+function toast(msg){ toastEl.textContent=msg; toastEl.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>toastEl.classList.remove('show'),2200); }
+const WD=['일','월','화','수','목','금','토'];
+function tickClock(){
+  const d=new Date();
+  const s=d.getFullYear()+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0')
+    +' ('+WD[d.getDay()]+') '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  document.getElementById('clock').innerHTML='현재 시각 · <b>'+s+'</b>';
+}
+tickClock(); setInterval(tickClock, 15000);
+
+/* ───────── 선택 로직 ─────────
+   - 복수 선택 가능 (객관식끼리, 객관식+기타 조합 OK)
+   - 단, 기본 보기를 전부 선택하는 것은 불가 → 상관없다/기타로 유도
+   - 상관없다 · 패스는 단독 선택(다른 선택을 지움)                     */
+function keys(side){ return side==='self' ? {v:'sv',t:'st',p:'sp'} : {v:'iv',t:'it',p:'ip'}; }
+
+function tapChip(a, side, val, baseOpts){
+  const K=keys(side); const list=arr(a,K.v);
+  if(val===PASS){
+    a[K.p]=!a[K.p];
+    if(a[K.p]){ a[K.v]=[]; a[K.t]=''; }
+    return true;
+  }
+  a[K.p]=false;
+  if(val===NONE){
+    if(list.includes(NONE)){ a[K.v]=[]; }
+    else{ a[K.v]=[NONE]; a[K.t]=''; }
+    return true;
+  }
+  /* 일반 보기 · 기타 */
+  let next=list.filter(x=>x!==NONE);
+  if(next.includes(val)) next=next.filter(x=>x!==val);
+  else next=next.concat([val]);
+  /* 전부 선택 방지 (기타 제외 기본 보기 기준) */
+  if(baseOpts && baseOpts.length>1 && baseOpts.every(o=>next.includes(o))){
+    toast(side==='ideal' ? '모든 보기가 괜찮다면 「상관없다」를 눌러주세요'
+                         : '전부 해당된다면 「기타」에 적어주세요');
+    return false;
+  }
+  a[K.v]=next;
+  return true;
+}
+
+/* ───────── 렌더 ───────── */
+const tabsEl=document.getElementById('tabs');
+const mainEl=document.getElementById('main');
+function qid(si,qi){ return SECTIONS[si].id+'-'+qi; }
+
+function isAnswered(si,qi){
+  const a=state.a[qid(si,qi)]; if(!a) return false;
+  return !!(a.sp||a.ip||(a.sv&&a.sv.length)||(a.iv&&a.iv.length)||a.st||a.it);
+}
+function sectionCount(si){
+  const s=SECTIONS[si]; if(s.result||s.archive) return null;
+  let n=0; s.qs.forEach((q,qi)=>{ if(isAnswered(si,qi)) n++; });
+  return n+'/'+s.qs.length;
+}
+function renderTabs(){
+  tabsEl.innerHTML='';
+  SECTIONS.forEach((s,i)=>{
+    const b=document.createElement('button');
+    b.className='tab'+(state.tab===i?' on':'');
+    const c = s.archive ? (archive.length? String(archive.length):null) : sectionCount(i);
+    b.innerHTML=s.name+(c?'<small>'+c+'</small>':'');
+    b.onclick=()=>{ state.tab=i; state.view=null; save(); render(); window.scrollTo({top:0}); };
+    tabsEl.appendChild(b);
+  });
+}
+
+function chipRow(container, id, side, cfg){
+  const a=ans(id); const K=keys(side);
+  const row=document.createElement('div'); row.className='row';
+  const lb=document.createElement('div');
+  lb.className='row-label '+(side==='self'?'me':'ideal');
+  lb.textContent = side==='self'?'나':'이상형';
+  row.appendChild(lb);
+  const box=document.createElement('div'); box.className='chips';
+
+  if(cfg.textPh!==undefined){
+    const inp=document.createElement('input');
+    inp.className='text-in'; inp.placeholder=cfg.textPh; inp.value=a[K.t]||'';
+    inp.oninput=()=>{ a[K.t]=inp.value; save(); renderTabs(); };
+    box.appendChild(inp);
+    if(cfg.allowNone){
+      const c=document.createElement('button');
+      c.className='chip none'+((a[K.v]||[]).includes(NONE)?' sel':'');
+      c.textContent=NONE;
+      c.onclick=()=>{ tapChip(a,side,NONE); save(); render(); };
+      box.appendChild(c);
+    }
+    const p=document.createElement('button');
+    p.className='chip pass'+(a[K.p]?' sel':'');
+    p.textContent=PASS;
+    p.onclick=()=>{ tapChip(a,side,PASS); save(); render(); };
+    box.appendChild(p);
+    if((a[K.v]||[]).includes(NONE)||a[K.p]){ inp.disabled=true; inp.placeholder=a[K.p]?'패스 선택됨':'상관없다 선택됨'; }
+  }else{
+    const base=cfg.options;
+    base.forEach(o=>{
+      const c=document.createElement('button');
+      c.className='chip'+((a[K.v]||[]).includes(o)?' sel':'');
+      c.textContent=o;
+      c.onclick=()=>{ if(tapChip(a,side,o,base)){ save(); render(); } };
+      box.appendChild(c);
+    });
+    if(cfg.allowNone){
+      const c=document.createElement('button');
+      c.className='chip none'+((a[K.v]||[]).includes(NONE)?' sel':'');
+      c.textContent=NONE;
+      c.onclick=()=>{ tapChip(a,side,NONE); save(); render(); };
+      box.appendChild(c);
+    }
+    const e=document.createElement('button');
+    e.className='chip etc'+((a[K.v]||[]).includes(ETC)?' sel':'');
+    e.textContent=ETC+' ✎';
+    e.onclick=()=>{ if(tapChip(a,side,ETC)){ save(); render(); } };
+    box.appendChild(e);
+    const p=document.createElement('button');
+    p.className='chip pass'+(a[K.p]?' sel':'');
+    p.textContent=PASS;
+    p.onclick=()=>{ tapChip(a,side,PASS); save(); render(); };
+    box.appendChild(p);
+    if((a[K.v]||[]).includes(ETC)){
+      const ta=document.createElement('textarea');
+      ta.className='etc-box'; ta.rows=2; ta.placeholder='자유롭게 적어주세요 (다른 보기와 함께 선택할 수 있어요)';
+      ta.value=a[K.t]||'';
+      ta.oninput=()=>{ a[K.t]=ta.value; save(); };
+      box.appendChild(ta);
+    }
+  }
+  row.appendChild(box);
+  container.appendChild(row);
+}
+
+function renderSection(si){
+  const s=SECTIONS[si];
+  const intro=document.createElement('div'); intro.className='sec-intro';
+  intro.innerHTML='<b>'+s.title+'</b><br>'+(s.intro||'');
+  mainEl.appendChild(intro);
+
+  s.qs.forEach((q,qi)=>{
+    const id=qid(si,qi), a=ans(id);
+    const card=document.createElement('div');
+    card.className='card'+(s.single?' single':'')+(a.db?' db-on':'');
+    const head=document.createElement('div'); head.className='q-head';
+    head.innerHTML='<span class="q-num">'+String(qi+1).padStart(2,'0')+'</span><span class="q-title">'+q.t+'</span>';
+    const dbAllowed = !q.noDB && (q.db || (!s.single && !s.result));
+    if(dbAllowed){
+      const d=document.createElement('button');
+      d.className='db'+(a.db?' on':''); d.textContent='양보 불가';
+      d.title='이상형에서 양보할 수 없는 조건이면 켜주세요';
+      d.onclick=()=>{ a.db=!a.db; save(); render(); };
+      head.appendChild(d);
+    }
+    card.appendChild(head);
+    if(q.note){ const n=document.createElement('div'); n.className='q-note'; n.textContent=q.note; card.appendChild(n); }
+
+    if(q.essay){
+      const ta=document.createElement('textarea');
+      ta.className='essay'; ta.placeholder=q.ph||'자유롭게 적어주세요';
+      ta.value=a.st||'';
+      ta.oninput=()=>{ a.st=ta.value; save(); renderTabs(); };
+      card.appendChild(ta);
+    }else{
+      const rows=document.createElement('div'); rows.className='rows';
+      if(s.single){
+        if(q.text!==undefined) chipRow(rows,id,'self',{textPh:q.text});
+        else chipRow(rows,id,'self',{options:q.o});
+      }else{
+        if(q.selfText!==undefined) chipRow(rows,id,'self',{textPh:q.selfText});
+        else chipRow(rows,id,'self',{options:(q.selfO||q.o)});
+        if(q.idealText!==undefined) chipRow(rows,id,'ideal',{textPh:q.idealText, allowNone:true});
+        else chipRow(rows,id,'ideal',{options:(q.idealO||q.o), allowNone:true});
+      }
+      card.appendChild(rows);
+    }
+    mainEl.appendChild(card);
+  });
+}
+
+/* ───────── 결과 값 변환 ───────── */
+function rowVal(a, side){
+  if(!a) return null;
+  const K=keys(side);
+  if(a[K.p]) return '(패스)';
+  const list=a[K.v]||[], t=a[K.t];
+  if(list.includes && list.includes(NONE)) return NONE;
+  if(Array.isArray(list) && list.length){
+    return list.map(v=> v===ETC ? ('기타 — '+(t||'(내용 없음)')) : v).join(' · ');
+  }
+  if(t) return t;
+  return null;
+}
+function fmtDate(ts){
+  const d=new Date(ts);
+  return d.getFullYear()+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0')
+    +' ('+WD[d.getDay()]+') '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+
+function buildResultText(A, ts){
+  const L=[];
+  L.push('══════════════════════════');
+  L.push(' 이상형 셀프 체크 결과');
+  L.push(' 작성 시각: '+fmtDate(ts||Date.now()));
+  L.push(' ★ = 양보 불가 조건');
+  L.push('══════════════════════════');
+  SECTIONS.forEach((s,si)=>{
+    if(s.result||s.archive) return;
+    L.push(''); L.push('['+s.title+']');
+    s.qs.forEach((q,qi)=>{
+      const a=A[qid(si,qi)]||{};
+      const star=a.db?' ★':'';
+      if(q.essay){
+        L.push((qi+1)+'. '+q.t+star);
+        L.push('   '+((a.st||'—').replace(/\n/g,'\n   ')));
+      }else if(s.single){
+        L.push((qi+1)+'. '+q.t+star+' : '+(rowVal(a,'self')||'—'));
+      }else{
+        L.push((qi+1)+'. '+q.t+star);
+        L.push('   나      : '+(rowVal(a,'self')||'—'));
+        L.push('   이상형  : '+(rowVal(a,'ideal')||'—'));
+      }
+    });
+  });
+  L.push(''); L.push('──────────────────────────');
+  L.push('이 기록은 내 이상형을 알아보기 위한 셀프 체크입니다.');
+  return L.join('\n');
+}
+
+function buildSheet(A, ts, titleTxt){
+  const sheet=document.createElement('div'); sheet.className='sheet';
+  sheet.innerHTML='<h2>'+(titleTxt||'이상형 셀프 체크 결과')+'</h2><div class="date">'+fmtDate(ts||Date.now())+'</div>';
+  SECTIONS.forEach((s,si)=>{
+    if(s.result||s.archive) return;
+    const h=document.createElement('h3'); h.textContent=s.title; sheet.appendChild(h);
+    s.qs.forEach((q,qi)=>{
+      const a=A[qid(si,qi)]||{};
+      const it=document.createElement('div'); it.className='r-item';
+      const star=a.db?'<span class="star">★ 양보불가</span>':'';
+      const f=v=>v?v.replace(/</g,'&lt;'):'<span class="empty">—</span>';
+      if(q.essay){
+        it.innerHTML='<span class="r-title">'+q.t+star+'</span><div class="r-vals">'+f(a.st)+'</div>';
+      }else if(s.single){
+        it.innerHTML='<span class="r-title">'+q.t+star+'</span><div class="r-vals">'+f(rowVal(a,'self'))+'</div>';
+      }else{
+        it.innerHTML='<span class="r-title">'+q.t+star+'</span>'+
+          '<div class="r-vals"><span class="lb">나</span>'+f(rowVal(a,'self'))+'</div>'+
+          '<div class="r-vals"><span class="lb g">이상형</span>'+f(rowVal(a,'ideal'))+'</div>';
+      }
+      sheet.appendChild(it);
+    });
+  });
+  const lg=document.createElement('div'); lg.className='legend';
+  lg.innerHTML='<span class="star">★</span> 양보 불가 조건 · 이 기록은 이 기기에서만 작성·보관됩니다';
+  sheet.appendChild(lg);
+  return sheet;
+}
+
+function downloadTxt(A, ts, name){
+  const blob=new Blob([buildResultText(A, ts)],{type:'text/plain;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='ideal_check_'+(name||'me')+'.txt';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+function nameOf(A){
+  const n=A['s0-0']&&A['s0-0'].st; return n? n.replace(/\s+/g,'') : 'me';
+}
+
+/* ───────── 결과 탭 ───────── */
+function renderResult(){
+  const act=document.createElement('div'); act.className='result-actions';
+
+  const b0=document.createElement('button'); b0.className='primary';
+  b0.textContent='이 기록 제출하기 (보관함에 저장)';
+  b0.onclick=()=>{
+    if(!confirm('제출하면 이 기록은 보관함에 날짜와 함께 저장되고, 수정할 수 없어요.\n제출할까요?')) return;
+    archive.unshift({ts:Date.now(), a:JSON.parse(JSON.stringify(state.a))});
+    if(saveArchive()){
+      toast('보관함에 저장됐어요');
+      if(confirm('새로 작성할 수 있도록 현재 답변을 비울까요?\n(보관함의 기록은 그대로 남아요)')){
+        state.a={}; save();
+      }
+      render();
+    }else{
+      archive.shift();
+      toast('이 환경에서는 보관함 저장이 지원되지 않아요. TXT 저장을 이용해주세요.');
+    }
+  };
+  const b1=document.createElement('button'); b1.textContent='TXT 파일로 저장하기';
+  b1.onclick=()=>downloadTxt(state.a, Date.now(), nameOf(state.a));
+  const b2=document.createElement('button'); b2.textContent='전체 내용 복사하기';
+  b2.onclick=async()=>{
+    const txt=buildResultText(state.a);
+    try{ await navigator.clipboard.writeText(txt); b2.textContent='복사 완료!'; }
+    catch(e){
+      const ta=document.createElement('textarea'); ta.value=txt;
+      document.body.appendChild(ta); ta.select();
+      try{ document.execCommand('copy'); b2.textContent='복사 완료!'; }catch(_){ b2.textContent='복사 실패 — 캡쳐를 이용해주세요'; }
+      ta.remove();
+    }
+    setTimeout(()=>b2.textContent='전체 내용 복사하기',1800);
+  };
+  const b3=document.createElement('button'); b3.className='danger'; b3.textContent='처음부터 다시 쓰기 (초기화)';
+  b3.onclick=()=>{
+    if(confirm('작성 중인 내용을 모두 지울까요? 되돌릴 수 없어요.\n(보관함의 제출 기록은 지워지지 않아요)')){
+      state.a={}; save(); render(); window.scrollTo({top:0});
+    }
+  };
+  act.append(b0,b1,b2,b3);
+  mainEl.appendChild(act);
+
+  const hint=document.createElement('div'); hint.className='result-hint';
+  hint.textContent='아래 결과지는 화면 캡쳐로 보관해도 좋아요.';
+  mainEl.appendChild(hint);
+  mainEl.appendChild(buildSheet(state.a, Date.now()));
+}
+
+/* ───────── 보관함 탭 ───────── */
+function renderArchive(){
+  if(state.view!==null && archive[state.view]){
+    const rec=archive[state.view];
+    const note=document.createElement('div'); note.className='lock-note';
+    note.innerHTML='<b>제출 완료</b> · 이 기록은 수정할 수 없어요';
+    mainEl.appendChild(note);
+
+    const act=document.createElement('div'); act.className='result-actions';
+    const back=document.createElement('button'); back.textContent='← 보관함 목록으로';
+    back.onclick=()=>{ state.view=null; render(); window.scrollTo({top:0}); };
+    const dl=document.createElement('button'); dl.textContent='이 기록 TXT로 저장하기';
+    dl.onclick=()=>downloadTxt(rec.a, rec.ts, nameOf(rec.a)+'_'+new Date(rec.ts).toISOString().slice(0,10));
+    const del=document.createElement('button'); del.className='danger'; del.textContent='이 기록 삭제하기';
+    del.onclick=()=>{
+      if(confirm('이 기록을 보관함에서 삭제할까요? 되돌릴 수 없어요.')){
+        archive.splice(state.view,1); saveArchive(); state.view=null; render();
+      }
+    };
+    act.append(back,dl,del);
+    mainEl.appendChild(act);
+    mainEl.appendChild(buildSheet(rec.a, rec.ts, '제출된 기록'));
+    return;
+  }
+  const intro=document.createElement('div'); intro.className='sec-intro';
+  intro.innerHTML='<b>보관함</b><br>제출한 기록이 날짜순으로 쌓여요. 눌러서 그때의 나와 이상형을 다시 볼 수 있어요.<br>※ 기록은 이 기기·이 브라우저에만 저장되니, 중요한 기록은 TXT로도 받아두세요.';
+  mainEl.appendChild(intro);
+  if(!archive.length){
+    const e=document.createElement('div'); e.className='arc-empty';
+    e.textContent='아직 제출된 기록이 없어요. 결과 탭에서 「제출하기」를 눌러 첫 기록을 남겨보세요.';
+    mainEl.appendChild(e);
+    return;
+  }
+  archive.forEach((rec,i)=>{
+    const it=document.createElement('div'); it.className='arc-item';
+    let cnt=0; SECTIONS.forEach((s,si)=>{ if(s.result||s.archive) return;
+      s.qs.forEach((q,qi)=>{ const a=rec.a[qid(si,qi)];
+        if(a&&(a.sp||a.ip||(a.sv&&a.sv.length)||(a.iv&&a.iv.length)||a.st||a.it)) cnt++; });});
+    it.innerHTML='<span class="seal"></span><span class="info"><b>'+fmtDate(rec.ts)+'</b>'+
+      '<small>'+nameOf(rec.a)+' · 응답 '+cnt+'개 문항</small></span><span class="go">보기 ›</span>';
+    it.onclick=()=>{ state.view=i; render(); window.scrollTo({top:0}); };
+    mainEl.appendChild(it);
+  });
+}
+
+/* ───────── 전체 렌더 & 이동 ───────── */
+const prevBtn=document.getElementById('prevBtn');
+const nextBtn=document.getElementById('nextBtn');
+
+function render(){
+  renderTabs();
+  mainEl.innerHTML='';
+  const s=SECTIONS[state.tab];
+  if(s.result){
+    const intro=document.createElement('div'); intro.className='sec-intro';
+    intro.innerHTML='<b>결과 · 내보내기</b><br>수고했어요! 제출하거나, 파일·복사·캡쳐로 보관해 주세요.';
+    mainEl.appendChild(intro);
+    renderResult();
+  }else if(s.archive){
+    renderArchive();
+  }else{
+    renderSection(state.tab);
+  }
+  prevBtn.disabled = state.tab===0;
+  prevBtn.onclick=()=>{ if(state.tab>0){ state.tab--; state.view=null; save(); render(); window.scrollTo({top:0}); } };
+  const last = state.tab>=SECTIONS.length-1;
+  nextBtn.textContent = s.archive ? '맨 위로' : (SECTIONS[state.tab+1]&&SECTIONS[state.tab+1].result ? '결과 보기' : '다음');
+  nextBtn.onclick = last ? ()=>window.scrollTo({top:0,behavior:'smooth'})
+    : ()=>{ state.tab++; state.view=null; save(); render(); window.scrollTo({top:0}); };
+}
+render();
+
+/* ───────── PWA ───────── */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{ navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
+}
+</script>
+</body>
+</html>
