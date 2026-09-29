@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- 이상형 셀프 체크 PWA: 나와 이상형을 나란히 적는 기록장. 화면·스타일·로직을 이 파일 하나에 담았다 -->
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -173,6 +174,7 @@
    pair 문항: 나 행 = (selfO||o)+기타(+패스) / selfText면 텍스트
               이상형 행 = (idealO||o)+상관없다+기타(+패스) / idealText면 텍스트+상관없다
    essay 문항: 서술형 한 칸(자기어필·섹션 자유서술)                     */
+// 섹션과 문항 데이터. 섹션마다 id·탭 이름·제목·안내 문구와 문항 목록(qs)을 가진다
 const SECTIONS = [
 { id:'s0', name:'기본', title:'섹션 0 · 기본 정보', intro:'나에 대한 기본 사항이에요. 편하게 적어주세요.', single:true, qs:[
   {t:'이름 (닉네임 가능)', text:'예: 홍길동 / 길동이'},
@@ -282,28 +284,39 @@ const SECTIONS = [
 { id:'arc', name:'보관함', title:'보관함', archive:true, qs:[] },
 ];
 
+// 특수 선택지 이름 (기타·상관없다·패스)
 const ETC='기타', NONE='상관없다', PASS='패스';
+// localStorage 키: 작성 중 답변(KEY)과 제출 기록 보관함(AKEY)
 const KEY='idealSelfCheckV2', AKEY='idealSelfCheckArchiveV1';
 
 /* ───────── 상태 ───────── */
+// 작성 중 상태: a = 문항별 답변, tab = 현재 섹션, view = 보관함에서 열어 본 기록 번호
 let state = { a:{}, tab:0, view:null };
+// 제출한 기록 목록 (최신이 맨 앞)
 let archive = [];
+// 저장해 둔 답변과 보관함을 불러온다 (저장소를 못 쓰는 환경이면 조용히 건너뛴다)
 try{
   const saved = localStorage.getItem(KEY);
   if(saved){ const p=JSON.parse(saved); state.a=p.a||{}; state.tab=p.tab||0; }
   const arc = localStorage.getItem(AKEY);
   if(arc){ archive = JSON.parse(arc)||[]; }
 }catch(e){}
+// 작성 중 답변과 현재 탭을 저장한다
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify({a:state.a,tab:state.tab})); }catch(e){} }
+// 보관함을 저장한다. 실패하면 false를 돌려준다
 function saveArchive(){ try{ localStorage.setItem(AKEY, JSON.stringify(archive)); return true; }catch(e){ return false; } }
+// 문항 id의 답변 객체를 꺼낸다. 없으면 빈 객체를 만들어 둔다
 function ans(id){ return state.a[id] || (state.a[id]={}); }
+// 답변 객체의 k 항목이 배열인지 보장한다
 function arr(a,k){ if(!Array.isArray(a[k])) a[k]=[]; return a[k]; }
 
 /* ───────── 토스트 & 시계 ───────── */
 const toastEl=document.getElementById('toast'); let toastT;
+// 화면 아래에 잠깐 떴다 사라지는 안내 메시지를 띄운다
 function toast(msg){ toastEl.textContent=msg; toastEl.classList.add('show');
   clearTimeout(toastT); toastT=setTimeout(()=>toastEl.classList.remove('show'),2200); }
 const WD=['일','월','화','수','목','금','토'];
+// 상단 현재 시각 표시를 갱신한다 (15초마다)
 function tickClock(){
   const d=new Date();
   const s=d.getFullYear()+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0')
@@ -316,8 +329,10 @@ tickClock(); setInterval(tickClock, 15000);
    - 복수 선택 가능 (객관식끼리, 객관식+기타 조합 OK)
    - 단, 기본 보기를 전부 선택하는 것은 불가 → 상관없다/기타로 유도
    - 상관없다 · 패스는 단독 선택(다른 선택을 지움)                     */
+// 「나」·「이상형」 행에 따라 답변 객체에서 쓸 키 이름(선택값·기타 글·패스)을 정한다
 function keys(side){ return side==='self' ? {v:'sv',t:'st',p:'sp'} : {v:'iv',t:'it',p:'ip'}; }
 
+// 선택지 칩을 눌렀을 때의 규칙을 적용한다. 규칙을 어겨 선택을 막았으면 false를 돌려준다
 function tapChip(a, side, val, baseOpts){
   const K=keys(side); const list=arr(a,K.v);
   if(val===PASS){
@@ -348,17 +363,21 @@ function tapChip(a, side, val, baseOpts){
 /* ───────── 렌더 ───────── */
 const tabsEl=document.getElementById('tabs');
 const mainEl=document.getElementById('main');
+// 섹션 번호와 문항 번호로 문항 id를 만든다 (예: s1-3)
 function qid(si,qi){ return SECTIONS[si].id+'-'+qi; }
 
+// 문항에 답이 하나라도 있는지 확인한다
 function isAnswered(si,qi){
   const a=state.a[qid(si,qi)]; if(!a) return false;
   return !!(a.sp||a.ip||(a.sv&&a.sv.length)||(a.iv&&a.iv.length)||a.st||a.it);
 }
+// 섹션 탭에 표시할 "답한 문항 수/전체 문항 수"
 function sectionCount(si){
   const s=SECTIONS[si]; if(s.result||s.archive) return null;
   let n=0; s.qs.forEach((q,qi)=>{ if(isAnswered(si,qi)) n++; });
   return n+'/'+s.qs.length;
 }
+// 상단 섹션 탭 줄을 그린다
 function renderTabs(){
   tabsEl.innerHTML='';
   SECTIONS.forEach((s,i)=>{
@@ -371,6 +390,7 @@ function renderTabs(){
   });
 }
 
+// 한 문항의 「나」 또는 「이상형」 선택지 칩 줄(보기·상관없다·기타·패스)을 그린다
 function chipRow(container, id, side, cfg){
   const a=ans(id); const K=keys(side);
   const row=document.createElement('div'); row.className='row';
@@ -436,6 +456,7 @@ function chipRow(container, id, side, cfg){
   container.appendChild(row);
 }
 
+// 현재 섹션의 안내 문구와 문항 카드들을 그린다
 function renderSection(si){
   const s=SECTIONS[si];
   const intro=document.createElement('div'); intro.className='sec-intro';
@@ -483,6 +504,7 @@ function renderSection(si){
 }
 
 /* ───────── 결과 값 변환 ───────── */
+// 한 행의 답변을 결과지에 쓸 글자로 바꾼다
 function rowVal(a, side){
   if(!a) return null;
   const K=keys(side);
@@ -495,12 +517,14 @@ function rowVal(a, side){
   if(t) return t;
   return null;
 }
+// 시각을 "YYYY.MM.DD (요일) HH:MM" 형식으로 바꾼다
 function fmtDate(ts){
   const d=new Date(ts);
   return d.getFullYear()+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0')
     +' ('+WD[d.getDay()]+') '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
 }
 
+// 전체 답변을 TXT 결과지 문자열로 만든다
 function buildResultText(A, ts){
   const L=[];
   L.push('══════════════════════════');
@@ -531,6 +555,7 @@ function buildResultText(A, ts){
   return L.join('\n');
 }
 
+// 결과 탭에 보여 줄 결과지 화면(HTML)을 만든다
 function buildSheet(A, ts, titleTxt){
   const sheet=document.createElement('div'); sheet.className='sheet';
   sheet.innerHTML='<h2>'+(titleTxt||'이상형 셀프 체크 결과')+'</h2><div class="date">'+fmtDate(ts||Date.now())+'</div>';
@@ -560,6 +585,7 @@ function buildSheet(A, ts, titleTxt){
   return sheet;
 }
 
+// 결과지를 TXT 파일로 내려받는다
 function downloadTxt(A, ts, name){
   const blob=new Blob([buildResultText(A, ts)],{type:'text/plain;charset=utf-8'});
   const a=document.createElement('a');
@@ -567,11 +593,13 @@ function downloadTxt(A, ts, name){
   a.download='ideal_check_'+(name||'me')+'.txt';
   a.click(); URL.revokeObjectURL(a.href);
 }
+// 파일 이름에 쓸 이름 (기본 정보의 이름 문항, 없으면 "me")
 function nameOf(A){
   const n=A['s0-0']&&A['s0-0'].st; return n? n.replace(/\s+/g,'') : 'me';
 }
 
 /* ───────── 결과 탭 ───────── */
+// 결과 탭: 제출·TXT 저장·복사·초기화 버튼과 결과지를 그린다
 function renderResult(){
   const act=document.createElement('div'); act.className='result-actions';
 
@@ -621,6 +649,7 @@ function renderResult(){
 }
 
 /* ───────── 보관함 탭 ───────── */
+// 보관함 탭: 기록 목록을 보여 주고, 하나를 고르면 그 기록의 결과지를 연다
 function renderArchive(){
   if(state.view!==null && archive[state.view]){
     const rec=archive[state.view];
@@ -669,6 +698,7 @@ function renderArchive(){
 const prevBtn=document.getElementById('prevBtn');
 const nextBtn=document.getElementById('nextBtn');
 
+// 현재 탭에 맞는 화면을 그리고 이전·다음 버튼을 맞춘다
 function render(){
   renderTabs();
   mainEl.innerHTML='';
